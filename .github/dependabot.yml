@@ -1,0 +1,11 @@
+# Go modules, the end-to-end suite's Python dependencies and Terraform providers
+# are added by the deliveries that create them (docs/roadmap.md, F1 and F2).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]

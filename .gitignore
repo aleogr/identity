@@ -1,0 +1,17 @@
+# Build output
+/bin/
+/dist/
+
+# Local environment and secrets never belong in the repository
+.env
+*.pem
+*.key
+
+# Python
+__pycache__/
+.pytest_cache/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*

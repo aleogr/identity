@@ -1,0 +1,19 @@
+name: Feature request
+description: A capability the product does not have. Check docs/requirements.md first; it may already be planned.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem to solve
+    validations:
+      required: true
+  - type: textarea
+    id: standards
+    attributes:
+      label: Relevant standards or specifications
+      description: RFCs, OpenID specifications, W3C recommendations, if any.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
