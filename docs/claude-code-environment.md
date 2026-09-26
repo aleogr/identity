@@ -59,9 +59,18 @@ with the pinned Playwright release, the one built against the Chromium revision 
 
 ## Network
 
-`govulncheck`, in `make check`, needs `vuln.go.dev`, which must be in the environment's allowed domains
-(**Network access** in the environment's settings). No target needs `go.dev` or GitHub release
-downloads: Go tools come through `proxy.golang.org` and Python packages through `pypi.org`.
+Set on 2026-09-26 in the environment's settings (**Network access**): level **Custom**, with the
+default list of common package managers included (it covers `proxy.golang.org` and `pypi.org`), and
+these allowed domains:
+
+| Domain | Needed by |
+|---|---|
+| `vuln.go.dev` | `govulncheck`, in `make check` |
+| `github.com` | The setup script, which clones the plugin marketplace |
+| `gcr.io`, `storage.googleapis.com` | `make image`, which pulls the distroless base image |
+
+No target needs `go.dev` or GitHub release downloads: Go tools come through `proxy.golang.org` and
+Python packages through `pypi.org`. Changes apply to new sessions only.
 
 ## Skills in `.claude/skills/`
 
