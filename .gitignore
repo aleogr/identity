@@ -15,3 +15,7 @@ __pycache__/
 .terraform/
 *.tfstate
 *.tfstate.*
+
+# Python virtual environments and end-to-end artefacts
+.venv/
+e2e/artifacts/
