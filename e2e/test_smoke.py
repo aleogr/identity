@@ -37,3 +37,10 @@ def test_sigterm_stops_gracefully(server):
     code, later = server.stop()
     assert code == 0
     assert later and later[-1]["message"] == "stopped"
+
+
+def test_server_output_is_kept_as_an_artefact(server):
+    server.stop()
+    kept = server.log_path.read_text().splitlines()
+    assert json.loads(kept[0])["message"] == "serving"
+    assert json.loads(kept[-1])["message"] == "stopped"

@@ -26,18 +26,20 @@ class Server:
     startup: dict
     base_url: str
     ready_seconds: float
-    lines: "queue.Queue[str]" = field(repr=False)
+    output: list = field(repr=False)  # every line the process wrote, in order
+    pump: threading.Thread = field(repr=False)
+    log_path: pathlib.Path | None = None
 
     def stop(self) -> tuple[int, list[dict]]:
-        """Send SIGTERM and return the exit status and every later log line."""
+        """Send SIGTERM and return the exit status and every line after the first.
+
+        The pump thread ends at end of file, so joining it guarantees the last
+        line the process wrote has been read.
+        """
         self.process.terminate()
         code = self.process.wait(timeout=START_TIMEOUT)
-        later = []
-        while not self.lines.empty():
-            line = self.lines.get()
-            if line:
-                later.append(json.loads(line))
-        return code, later
+        self.pump.join(timeout=START_TIMEOUT)
+        return code, [json.loads(line) for line in self.output[1:] if line]
 
 
 def _environment() -> dict:
@@ -45,7 +47,9 @@ def _environment() -> dict:
     return {"PATH": os.environ.get("PATH", ""), "IDENTITY_HTTP_ADDR": "127.0.0.1:0"}
 
 
-def start_server() -> Server:
+def start_server(log_path: pathlib.Path) -> Server:
+    """Start the binary, keeping everything it writes in log_path (a CI artefact)."""
+    log_path.parent.mkdir(parents=True, exist_ok=True)
     started = time.monotonic()
     process = subprocess.Popen(
         [str(BINARY), "serve"],
@@ -54,16 +58,23 @@ def start_server() -> Server:
         stderr=subprocess.STDOUT,
         text=True,
     )
-    lines: "queue.Queue[str]" = queue.Queue()
+    output: list[str] = []
+    first: "queue.Queue[str]" = queue.Queue()
 
     def pump() -> None:
-        for line in process.stdout:
-            lines.put(line.strip())
+        with log_path.open("w") as log:
+            for line in process.stdout:
+                log.write(line)
+                log.flush()
+                output.append(line.strip())
+                if len(output) == 1:
+                    first.put(output[0])
 
-    threading.Thread(target=pump, daemon=True).start()
-    first = lines.get(timeout=START_TIMEOUT)
-    startup = json.loads(first)
-    assert startup["message"] == "serving", first
+    reader = threading.Thread(target=pump, daemon=True)
+    reader.start()
+    line = first.get(timeout=START_TIMEOUT)
+    startup = json.loads(line)
+    assert startup["message"] == "serving", line
     base_url = "http://" + startup["addr"]
     while True:
         try:
@@ -74,12 +85,12 @@ def start_server() -> Server:
             if time.monotonic() - started > START_TIMEOUT:
                 raise
             time.sleep(0.01)
-    return Server(process, startup, base_url, time.monotonic() - started, lines)
+    return Server(process, startup, base_url, time.monotonic() - started, output, reader, log_path)
 
 
 @pytest.fixture
-def server():
-    s = start_server()
+def server(request):
+    s = start_server(ARTIFACTS / f"server-{request.node.name}.log")
     yield s
     if s.process.poll() is None:
         s.process.kill()
