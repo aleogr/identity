@@ -155,7 +155,7 @@ service, **E**levation of privilege.
 |---|---|---|---|
 | X-01 | Timing side channels on secret comparison | Constant-time comparison, enforced by a lint rule | Lint |
 | X-02 | Weak or misused cryptography | Algorithm set fixed in code with refusals (§17); keys generated only by the crypto packages; nonces never reused (random 96-bit for AES-GCM with rotation well below the bound) | Tests; lint against `math/rand` in security packages |
-| X-03 | Parser bugs (JWT, JSON, CBOR, XML, SCIM filters, URLs) | Fuzzing of every parser, corpus committed, run on every pull request and nightly | CI fuzz jobs |
+| X-03 | Parser bugs (JWT, JSON, CBOR, XML, SCIM filters, URLs) | Fuzzing of every parser, corpus committed, run on every pull request and nightly | CI fuzz jobs; F1: `FuzzLoad` for the deployment configuration loader |
 | X-04 | Application denial of service through expensive operations | argon2id cost bounded and concurrency-limited; request size limits; XML and JSON depth limits; regular expressions only from RE2 | Tests with oversized and deep inputs |
 | X-05 | Misconfiguration weakens security | Floors in code; invalid configuration refuses to start; recommendations shown in the console | Tests per floor through every facade; F1: a process test that a boolean with a typo makes the binary exit with status 2 naming the variable |
 | X-06 | Prompt-injected agents misuse delegated tokens | Least-privilege scopes and RAR, per-grant consent, short lifetimes, token vault releases audited and revocable, CAEP revocation | Tests of scope narrowing and revocation propagation |
