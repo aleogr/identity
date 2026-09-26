@@ -1,0 +1,5 @@
+# Exceptions to the Trivy gate (docs/threat-model.md, B7-01).
+# Each entry needs `id`, a `statement` justifying it and an `expired_at` date
+# at most 90 days ahead; `make check` refuses anything else. An exception is
+# added only in a pull request the owner approves.
+vulnerabilities: []
