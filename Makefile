@@ -66,6 +66,12 @@ test: ## Unit tests with the race detector, across the workspace and tools/check
 	go test -race -cover $(PKGS)
 	cd tools/checks && GOWORK=off go test -race -cover ./...
 
+FUZZ_TIME ?= 30s
+
+.PHONY: fuzz
+fuzz: ## Run every fuzz target for FUZZ_TIME (threat X-03)
+	go test ./internal/config/ -run '^$$' -fuzz '^FuzzLoad$$' -fuzztime $(FUZZ_TIME)
+
 .PHONY: integration
 integration: ## Tests behind the integration tag (a real PostgreSQL from F4)
 	go test -race -tags integration $(PKGS)

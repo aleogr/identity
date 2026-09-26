@@ -87,6 +87,7 @@ Once the code exists, the checks CI runs are the ones to run before pushing; kee
 make check        # go vet, staticcheck, golangci-lint (with depguard), gosec, govulncheck, licence
                   # identifiers, Trivy exceptions, gitleaks over the history, actionlint and zizmor
 make test         # go test ./... -race -cover, across the workspace and tools/checks
+make fuzz         # every fuzz target for 30 seconds (FUZZ_TIME), also run by CI's test job
 make integration  # tests that need a real PostgreSQL, behind the `integration` tag
 make e2e          # builds the binary and runs the end-to-end suite against it
 make image        # builds the container image with ko into dist/ (Trivy scans it in CI only)
