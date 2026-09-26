@@ -22,11 +22,11 @@ build it is, and answers a health check.
 | 1 | **One required status check per CI job**, named exactly as in section 6 | A single aggregating job: the ruleset would never change, but what blocks would be hidden in YAML and a mistake in the aggregator could let a failed job pass |
 | 2 | **The `integration` job exists from F1**, with a PostgreSQL 16 service container, even though it has no tests until F4 | Adding it in F4, which would need another manual change to the ruleset |
 | 3 | **Deployment configuration from `IDENTITY_*` environment variables only** in F1; file-based values (`IDENTITY_X_FILE`) arrive with the first secret (F4) | Environment plus a YAML file now: another parser (X-03) with no use yet |
-| 4 | **GitHub code scanning in F1**: a CodeQL workflow, and SARIF from `gosec` and Trivy uploaded to the Security tab | Blocking only through job logs, deferring code scanning |
+| 4 | **GitHub code scanning in F1**: a CodeQL workflow, and SARIF from `golangci-lint` (including `gosec`) and Trivy uploaded to the Security tab | Blocking only through job logs, deferring code scanning |
 | 5 | **Trivy blocks on HIGH and CRITICAL, with or without a fix available**; MEDIUM and LOW are reported through SARIF without blocking | Blocking every severity (noise); ignoring unfixed findings (hides the cases without a way out) |
 | 6 | **Individual Trivy exceptions are allowed only under strict rules** (section 6.4) | No exceptions at all, which could stop every pull request indefinitely |
 | 7 | **Images built with `ko`**, reproducible by default, base image pinned by digest | A Dockerfile with `docker buildx` (cannot build in a session, reproducibility by hand); building only in F3 |
-| 8 | **Tools in a separate `tools/` module outside the workspace** | Tools in the workspace, which would raise shared dependency versions (for example `golang.org/x/crypto`) for `core` during workspace builds |
+| 8 | **Tools under `tools/`, outside the workspace, one module per tool** (section 4.3) | Tools in the workspace, which would raise shared dependency versions (for example `golang.org/x/crypto`) for `core` during workspace builds; one module for all tools, which breaks `gitleaks` and `actionlint` |
 | 9 | **`math/rand` forbidden in all non-test code**, not only in "security packages" | A per-package list, fragile in a product where almost every package is security code |
 | 10 | **`zizmor` added to `make check`** alongside `actionlint`, as the workflow security linter B7-02 asks for | `actionlint` alone, which checks syntax, not security |
 
@@ -41,7 +41,7 @@ Verified in the session on 2026-09-26; `docs/roadmap.md`'s appendix is updated w
 | Chromium | Revision 1194 (Chromium 141.0.7390.37) in `/opt/pw-browsers` | Playwright for Python **1.56.0**, whose `browsers.json` names revision 1194 (1.57.0 names 1200) |
 | PostgreSQL | 16.13 in `/usr/lib/postgresql/16` | Used by F4's harness; F1's `make integration` needs none |
 | Docker | Installed, daemon not running | Images are built by `ko` to a tarball; Trivy and CodeQL run only in CI |
-| Network | `go.dev` and `github.com` release downloads refused by the session's proxy; `proxy.golang.org`, `pypi.org`, `gcr.io` and `ghcr.io` reachable | Every tool the session runs comes through the Go proxy or PyPI; Trivy is CI-only |
+| Network | `go.dev`, `vuln.go.dev` and `github.com` release downloads refused by the session's proxy; `proxy.golang.org`, `pypi.org`, `gcr.io`, `ghcr.io` and Docker Hub reachable | Every tool the session runs comes through the Go proxy or PyPI; Trivy is CI-only; `govulncheck` needs `vuln.go.dev`, which the owner adds to the environment's allowed domains (section 10) |
 
 ## 4. Modules, files and tools
 
@@ -70,20 +70,30 @@ copy of `LICENSES/Apache-2.0.txt`.
 The value is reachable only through an explicitly named method (`Reveal`). It lives in `core` because
 the whole domain will carry secrets, and it performs no I/O. It is the typed secret wrapper of B4-04.
 
-### 4.3 The tools module
+### 4.3 The tools modules
 
-`tools/` is a module of its own (`github.com/aleogr/identity/tools`, AGPL-3.0-only by the default rule
-of `LICENSING.md`, with its `LICENSE`), **not listed in `go.work`**, and always invoked as
-`GOWORK=off go tool -modfile=tools/go.mod <tool>`. It holds, as `tool` directives:
+Tools live under `tools/`, **outside `go.work`**, with **one module per tool**:
+`tools/golangci-lint`, `tools/staticcheck`, `tools/gosec`, `tools/govulncheck`, `tools/gitleaks`,
+`tools/actionlint` and `tools/ko`, each holding only a `go.mod` whose `tool` directive pins the tool,
+and its `go.sum`. The two checkers written for this project, `spdxcheck` and `trivyignorecheck`, live in
+one more module, `tools/checks`, with their tests.
 
-- `golangci-lint` v2 (which includes `depguard`), `staticcheck`, `gosec`, `govulncheck`, `gitleaks`,
-  `actionlint`, `ko`;
-- two checkers written for this project, with their tests: `tools/cmd/spdxcheck` and
-  `tools/cmd/trivyignorecheck`.
+**Why one module per tool:** a spike in the session put all seven tools in one module. Minimal version
+selection then raised dependencies they share (`charmbracelet/x/ansi`, the YAML libraries), and
+`gitleaks` and `actionlint` no longer compiled. Each tool in its own module builds with exactly the
+dependency versions its authors tested.
+
+The `Makefile` builds each tool once into `bin/tools/` with
+`GOWORK=off go build -C tools/<tool> -o ../../bin/tools/ <package>`, and then runs the binary. Go's
+build cache makes rebuilds instant. The binaries run with the workspace **on**, so linters see every
+module as the build does.
+
+The modules are AGPL-3.0-only by the default rule of `LICENSING.md`. Only `tools/checks` contains
+source, so only it carries a `LICENSE`.
 
 **Stated departure:** golangci-lint's documentation recommends its released binary over building it
-from source. The project's decision (`CLAUDE.md`) is `tool` directives; the separate module contains the
-risk that decision carries, since the tools' dependencies never enter `core`'s module graph.
+from source. The project's decision (`CLAUDE.md`) is `tool` directives; building each tool in its own
+module keeps that decision and its versions reproducible.
 
 `zizmor` is a Python tool. It runs from a virtual environment the `Makefile` creates on demand in
 `tools/.venv` from `tools/requirements.txt`, pinned with hashes and installed with `--require-hashes`.
@@ -98,7 +108,7 @@ offending file.
 
 ### 4.5 Dependabot
 
-`.github/dependabot.yml` gains the `gomod` ecosystem for every module and for `tools/`, and the `pip`
+`.github/dependabot.yml` gains the `gomod` ecosystem for every workspace module and every `tools/*` module, and the `pip`
 ecosystem for `e2e/` and `tools/`. `playwright` is ignored, with a comment: its version is bound to the
 Chromium revision pre-installed in the session (section 3), and moves only by a deliberate pull request
 when that revision changes.
@@ -127,8 +137,10 @@ lists it.
 
 ### 5.3 `make check`
 
-In order, each across every module where it applies: `go vet`; `staticcheck`; `golangci-lint`; `gosec`
-(also writing SARIF for code scanning); `govulncheck`; `spdxcheck`; `trivyignorecheck`; `gitleaks` over
+In order, each across every module where it applies: `go vet`; `staticcheck`; `golangci-lint` (run
+once over every workspace module, also writing SARIF for code scanning, which carries the findings of
+its `gosec`, `depguard` and other linters); `gosec` standalone, per module, since it does not follow
+the workspace across modules; `govulncheck`; `spdxcheck`; `trivyignorecheck`; `gitleaks` over
 the git history; `actionlint` and `zizmor` over `.github/workflows/`. `gitleaks`, `actionlint` and
 `zizmor` run in `make check`, and not only in CI, so a session catches their findings before a push.
 
@@ -141,8 +153,8 @@ Every job has its own `timeout-minutes`. The job names below are the exact requi
 
 | Job | What it does |
 |---|---|
-| `check` | `make check`, with the full history checked out (`fetch-depth: 0`) for `gitleaks`; uploads `gosec`'s SARIF |
-| `test` | `make test`: `go test -race -cover` across every workspace module and `tools/` |
+| `check` | `make check`, with the full history checked out (`fetch-depth: 0`) for `gitleaks`; uploads `golangci-lint`'s SARIF, which includes `gosec`'s findings |
+| `test` | `make test`: `go test -race -cover` across every workspace module and `tools/checks` |
 | `integration` | `make integration` with a `postgres:16` service container pinned by digest and `TEST_DATABASE_URL` set. **It has no tests until F4**; the pull request says so |
 | `e2e` | Installs Chromium on the runner, runs `make e2e`, uploads logs and screenshots as artefacts |
 | `image` | `ko build` to a tarball (no push); Trivy scans the tarball, **failing on HIGH and CRITICAL**, honouring `.trivyignore.yaml`; uploads the full SARIF |
@@ -243,7 +255,7 @@ exits with status 1.
 | Target | What it does |
 |---|---|
 | `check` | Section 5.3 |
-| `test` | `go test -race -cover` across the workspace modules and `tools/` |
+| `test` | `go test -race -cover` across the workspace modules and `tools/checks` |
 | `integration` | `go test -race -tags integration` across the workspace. In F1 it needs no database; F4 adds the local PostgreSQL 16 cluster started when `TEST_DATABASE_URL` is unset |
 | `e2e` | Builds the binary, then runs the suite with `e2e/.venv/bin/python -m pytest` |
 | `e2e-deps` | Creates `e2e/.venv` from `e2e/requirements.txt` (hash-pinned, Playwright 1.56.0). In a session it uses the Chromium in `/opt/pw-browsers`; in CI the workflow installs Chromium |
@@ -296,7 +308,13 @@ Against the binary from `make build`, on a free port:
 
 ## 10. Manual steps for the owner
 
-Given one at a time after the pull request's checks have run once, so that GitHub offers their names:
+Given one at a time.
+
+0. Before implementation: add `vuln.go.dev` to the allowed domains of the `identity` cloud
+   environment, so `govulncheck` runs in a session. Until it is added, a session's `make check` stops
+   at `govulncheck`, and the pull request says so.
+
+After the pull request's checks have run once, so that GitHub offers their names:
 
 1. Add the required status checks `check`, `test`, `integration`, `e2e`, `image` and `codeql` to the
    `protect-main` ruleset.
@@ -308,9 +326,9 @@ Each step, once done, is recorded in `docs/infrastructure.md`.
 ## 11. Documents updated in the same pull request
 
 - `docs/roadmap.md`: F1's scope gains CodeQL, `zizmor`, `ko`, the `integration` job and the `tools/`
-  module; F8's scope and threats gain the constant-time comparison lint rule (X-01); the appendix
+  modules; F8's scope and threats gain the constant-time comparison lint rule (X-01); the appendix
   records section 3's facts.
-- `docs/design.md`, section 1.2: the `tools/` module.
+- `docs/design.md`, section 1.2: the `tools/` modules.
 - `docs/threat-model.md`:
   - B7-01 — Trivy's threshold and the exception policy;
   - B7-02 — `actionlint` and `zizmor` as the verification;
