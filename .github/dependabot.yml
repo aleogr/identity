@@ -1,5 +1,3 @@
-# Go modules, the end-to-end suite's Python dependencies and Terraform providers
-# are added by the deliveries that create them (docs/roadmap.md, F1 and F2).
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -8,4 +6,38 @@ updates:
       interval: weekly
     groups:
       actions:
+        patterns: ["*"]
+
+  # The workspace modules and every tool module. The toolchain line and the
+  # image digests in .ko.yaml and ci.yml are not updated by Dependabot: they
+  # are bumped by hand when govulncheck or Trivy reports a fix.
+  - package-ecosystem: gomod
+    directories:
+      - /
+      - /spec
+      - /core
+      - /adapters/postgres
+      - /adapters/gcp
+      - /adapters/mail
+      - /conformance
+      - /tools/*
+    schedule:
+      interval: weekly
+    groups:
+      go:
+        patterns: ["*"]
+
+  - package-ecosystem: pip
+    directories:
+      - /e2e
+      - /tools
+    schedule:
+      interval: weekly
+    ignore:
+      # Bound to the Chromium revision pre-installed in Claude Code sessions
+      # (/opt/pw-browsers); it moves only by a deliberate pull request when
+      # that revision changes (docs/claude-code-environment.md).
+      - dependency-name: playwright
+    groups:
+      python:
         patterns: ["*"]
