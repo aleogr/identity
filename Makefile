@@ -73,3 +73,14 @@ integration: ## Tests behind the integration tag (a real PostgreSQL from F4)
 .PHONY: compile
 compile: ## Compile every workspace package (CodeQL's build)
 	go build $(PKGS)
+
+BUILD_ID := $(shell git describe --tags --always --dirty --abbrev=12 2>/dev/null || echo unknown)
+LDFLAGS := -X github.com/aleogr/identity/internal/buildinfo.version=$(BUILD_ID)
+
+.PHONY: build
+build: ## Build bin/identity with the build identifier
+	CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o bin/identity ./cmd/identity
+
+.PHONY: run
+run: build ## Build and run identity serve
+	bin/identity serve
