@@ -77,12 +77,18 @@ Applied by hand on 2026-09-26:
   channel `SECURITY.md` names.
 - **Dependabot alerts and Dependabot security updates:** enabled.
 - **Secret scanning:** enabled, with push protection.
-- **Code scanning:** not yet; it needs Go code and a workflow (F1).
+- **Code scanning:** CodeQL in **advanced setup**, through `.github/workflows/codeql.yml` (F1); the
+  default setup is off, since the two cannot coexist (checked on 2026-09-26 in **Settings → Code
+  security → Code scanning**). `golangci-lint` and Trivy upload their SARIF from `ci.yml`. The code
+  scanning check runs (`CodeQL`, `golangci-lint`, `Trivy`) are not required checks; the blocking gate is
+  the jobs below.
 - **Branch protection:** the `protect-main` ruleset on the default branch, active: deletions restricted,
   force pushes blocked, a pull request required with **0 required approvals** — Claude Code never
   approves and the owner is the only human on the repository, so the guarantee comes from the required
-  checks, not an approval count. **Required status checks are added when F1 creates the workflows**;
-  until then the pipeline is advisory.
+  checks, not an approval count. **Required status checks**, added on 2026-09-26 (F1), in
+  **Settings → Rules → Rulesets → protect-main → Require status checks to pass**, source GitHub
+  Actions: `check`, `test`, `integration`, `e2e`, `image`, `codeql`. "Require branches to be up to
+  date" is off. A delivery that adds a CI job adds its name here and in the ruleset.
 
 ## Still to do by hand, and when
 
@@ -92,5 +98,4 @@ Applied by hand on 2026-09-26:
 | Add the Terraform service account as an owner of the `aleogr.dev` property in Search Console (**Settings → Users and permissions**), as the marketplace did; without it Cloud Run refuses the domain mapping | F2 or F3 |
 | Grant this project's Terraform identity the `sqlTenant` role on the shared instance, in `aleogr/lab` | F4 |
 | Isolation grants on the `identity` database through the Cloud SQL Auth Proxy: `CONNECT` revoked from `PUBLIC`, granted to this project's two users, `CONNECTION LIMIT 8` | F4 |
-| Required status checks added to `protect-main` | F1 |
 | Brevo API key for this project | F11 |
