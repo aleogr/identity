@@ -1,0 +1,15 @@
+# Images built by ko (spec, decision 7). The base image is pinned by digest;
+# ko's builds are reproducible (fixed timestamps, -trimpath), which the
+# release's digest check relies on (docs/requirements.md, section 19).
+defaultBaseImage: gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab
+defaultPlatforms:
+  - linux/amd64
+builds:
+  - id: identity
+    main: ./cmd/identity
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -X github.com/aleogr/identity/internal/buildinfo.version={{.Env.BUILD_ID}}

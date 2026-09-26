@@ -28,8 +28,8 @@ Never in a public issue. Follow [`SECURITY.md`](SECURITY.md).
 - One topic per pull request, against `main`.
 - Everything versioned is written in English. User-facing text goes through translation keys and exists
   in every supported language (en-US and pt-BR).
-- The checks CI runs must pass: `make check`, `make test`, `make integration`, `make e2e`. No test is
-  skipped or disabled to make a pull request pass.
+- The checks CI runs must pass: `make check`, `make test`, `make integration`, `make e2e`, and the
+  image scan and CodeQL in CI. No test is skipped or disabled to make a pull request pass.
 - Security defaults are floors: no change may add a way to configure the product below them.
 - A change that adds a trust boundary, a parser, an outbound call, a secret or an extension point
   updates [`docs/threat-model.md`](docs/threat-model.md).

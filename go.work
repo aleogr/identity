@@ -1,0 +1,13 @@
+go 1.27.0
+
+toolchain go1.27.1
+
+use (
+	.
+	./adapters/gcp
+	./adapters/mail
+	./adapters/postgres
+	./conformance
+	./core
+	./spec
+)

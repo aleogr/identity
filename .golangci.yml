@@ -1,0 +1,94 @@
+# Lint configuration for every Go module (docs/design.md, section 1.2).
+version: "2"
+
+run:
+  timeout: 10m
+
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - contextcheck
+    - depguard
+    - errorlint
+    - forcetypeassert
+    - gocritic
+    - gosec
+    - nilerr
+    - noctx
+    - revive
+  settings:
+    depguard:
+      rules:
+        # The direction of dependencies (docs/design.md, section 1.2).
+        spec:
+          list-mode: strict
+          files: ["**/spec/**"]
+          allow:
+            - $gostd
+            - github.com/aleogr/identity/spec
+        core:
+          list-mode: strict
+          files: ["**/core/**"]
+          allow:
+            - $gostd
+            - golang.org/x/crypto
+            - github.com/aleogr/identity/spec
+            - github.com/aleogr/identity/core
+        conformance:
+          list-mode: strict
+          files: ["**/conformance/**"]
+          allow:
+            - $gostd
+            - github.com/aleogr/identity/spec
+            - github.com/aleogr/identity/conformance
+        # Apache-2.0 code never imports the AGPL-3.0 server (LICENSING.md).
+        adapters-licence:
+          files: ["**/adapters/**"]
+          deny:
+            - pkg: github.com/aleogr/identity$
+              desc: adapters are Apache-2.0 and never import the AGPL-3.0 server
+            - pkg: github.com/aleogr/identity/internal
+              desc: adapters are Apache-2.0 and never import the AGPL-3.0 server
+            - pkg: github.com/aleogr/identity/cmd
+              desc: adapters are Apache-2.0 and never import the AGPL-3.0 server
+        # An adapter never imports another, so a PostgreSQL user never downloads the GCP libraries.
+        adapter-postgres:
+          files: ["**/adapters/postgres/**"]
+          deny:
+            - pkg: github.com/aleogr/identity/adapters/gcp
+              desc: an adapter never imports another adapter
+            - pkg: github.com/aleogr/identity/adapters/mail
+              desc: an adapter never imports another adapter
+        adapter-gcp:
+          files: ["**/adapters/gcp/**"]
+          deny:
+            - pkg: github.com/aleogr/identity/adapters/postgres
+              desc: an adapter never imports another adapter
+            - pkg: github.com/aleogr/identity/adapters/mail
+              desc: an adapter never imports another adapter
+        adapter-mail:
+          files: ["**/adapters/mail/**"]
+          deny:
+            - pkg: github.com/aleogr/identity/adapters/postgres
+              desc: an adapter never imports another adapter
+            - pkg: github.com/aleogr/identity/adapters/gcp
+              desc: an adapter never imports another adapter
+        # Threat X-02: the only source of randomness is crypto/rand.
+        randomness:
+          files: ["$all", "!$test"]
+          deny:
+            - pkg: math/rand
+              desc: predictable; use crypto/rand (threat X-02)
+            - pkg: math/rand/v2
+              desc: predictable; use crypto/rand (threat X-02)
+  exclusions:
+    # golangci-lint's own preset for the unchecked errors Go code conventionally
+    # ignores, such as Close on a response body already read.
+    presets:
+      - std-error-handling
+    rules:
+      # Tests start the binary they build and git; the arguments are the tests' own.
+      - path: _test\.go
+        linters: [gosec]
+        text: "G204"

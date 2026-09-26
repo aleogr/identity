@@ -52,10 +52,25 @@ latest in the marketplace when the session starts (6.4.1 on 2026-09-25).
 
 ### Why the end-to-end and Terraform dependencies are installed by the script
 
-A session has neither Playwright for Python nor `terraform`. The `Makefile` targets that install them
-are delivered in F1 and F2 (`docs/roadmap.md`); the pinned Playwright release is the one built against
-the Chromium revision pre-installed in `/opt/pw-browsers` (1194 on 2026-09-26), so no browser is
-downloaded.
+A session has neither Playwright for Python nor `terraform`. `make e2e-deps` (F1) creates `e2e/.venv`
+with the pinned Playwright release, the one built against the Chromium revision pre-installed in
+`/opt/pw-browsers` (1194 on 2026-09-26, Playwright 1.56.0), so no browser is downloaded;
+`make terraform-deps` arrives with F2.
+
+## Network
+
+Set on 2026-09-26 in the environment's settings (**Network access**): level **Custom**, with the
+default list of common package managers included (it covers `proxy.golang.org` and `pypi.org`), and
+these allowed domains:
+
+| Domain | Needed by |
+|---|---|
+| `vuln.go.dev` | `govulncheck`, in `make check` |
+| `github.com` | The setup script, which clones the plugin marketplace |
+| `gcr.io`, `storage.googleapis.com` | `make image`, which pulls the distroless base image |
+
+No target needs `go.dev` or GitHub release downloads: Go tools come through `proxy.golang.org` and
+Python packages through `pypi.org`. Changes apply to new sessions only.
 
 ## Skills in `.claude/skills/`
 

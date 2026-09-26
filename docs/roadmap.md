@@ -104,22 +104,29 @@ dependencies; section 6 shows what can run in parallel.
 **Depends on:** nothing (the governance files of the inaugural session are already merged).
 
 **What is needed from the owner:**
-1. Enable branch protection on `main`: require a pull request and require the CI checks to pass.
-2. Enable Dependabot alerts and security updates.
+1. Add the required status checks `check`, `test`, `integration`, `e2e`, `image` and `codeql` to the
+   `protect-main` ruleset (branch protection and Dependabot were enabled in the inaugural session).
+2. Allow `vuln.go.dev` in the environment's network settings, so `govulncheck` runs in a session.
 
 **Scope:**
 - `go.work` and the phase-1 modules of design §1.2: the root module (`cmd/identity`), `spec`, `core`,
   `adapters/postgres`, `adapters/gcp`, `adapters/mail`, `conformance`; each with its `LICENSE` and
   SPDX headers; a CI check that every Go file carries one.
-- Lint and security tools pinned as `tool` directives; `.golangci.yml` with `depguard` rules
-  enforcing design §1.2's dependency direction and a rule against `math/rand` in security packages.
+- Lint and security tools pinned as `tool` directives, one module per tool under `tools/` outside the
+  workspace; `.golangci.yml` with `depguard` rules enforcing design §1.2's dependency direction and a
+  rule against `math/rand` in all non-test code.
 - `cmd/identity serve`: HTTP server, `/health`, graceful shutdown on `SIGTERM`.
 - Configuration loading that **refuses to start** on an unknown or invalid value, naming it.
 - `log/slog` JSON logging with Cloud Logging's field names; typed secret wrappers that redact (B4-04).
 - Build identifier from `git describe`, logged at start.
 - `Makefile`: `check`, `test`, `integration`, `e2e`, `e2e-deps`, `build`, `run`.
-- `.github/workflows/ci.yml` with actions pinned by commit SHA and least-privilege permissions
-  (B7-02); `gitleaks`; the image built and scanned by Trivy.
+- `.github/workflows/ci.yml` with the jobs `check`, `test`, `integration` (a PostgreSQL 16 service
+  container, without tests until F4), `e2e` and `image`, and `.github/workflows/codeql.yml` with the
+  job `codeql`; actions pinned by commit SHA and least-privilege permissions (B7-02); `gitleaks`,
+  `actionlint` and `zizmor` in `make check`; the image built by `ko` and scanned by Trivy, blocking on
+  HIGH and CRITICAL; SARIF uploaded to code scanning.
+- `.trivyignore.yaml` and `trivyignorecheck`: an exception needs a statement and an expiry at most
+  90 days ahead.
 - `e2e/` with pinned `playwright` (the version matching the environment's Chromium, appendix) and a
   smoke test.
 
@@ -274,12 +281,13 @@ non-weakening setting (composition rules) has no floor.
 **Scope:** the key-encryption port with the Cloud KMS adapter, a local-key adapter and a fake; the
 hierarchy of design §4.1; lazy unwrap with a bounded cache; signing keys (ES256 default, EdDSA,
 PS256, RS256) with rotation that publishes the next key before use; the JWKS endpoint; the `Signer`
-interface with the in-memory implementation; the refused algorithms of §17.
+interface with the in-memory implementation; the refused algorithms of §17; the lint rule that
+enforces constant-time comparison of secrets (§17).
 
 **Verification:** tests that the database holds no plaintext key (schema scan, B4-02); rotation tests;
 a KMS failure test (B4-05); a CI log line from the lab showing the unwrap on first request.
 
-**Threats:** B4-02, B4-05, X-02.
+**Threats:** B4-02, B4-05, X-01, X-02.
 
 ---
 
@@ -543,10 +551,11 @@ than what tests need, and React components (11); production (12).
 
 | Fact | Value | Consequence |
 |---|---|---|
-| Go | `go1.24.7` on the path, `GOTOOLCHAIN=auto` | `go.mod` names the exact toolchain (1.27.x), which is fetched automatically |
+| Go | `go1.24.7` on the path, `GOTOOLCHAIN=auto`; latest release `go1.27.1` | `go.work` and `go.mod` name `toolchain go1.27.1`, which is fetched automatically |
+| Network | `go.dev`, `vuln.go.dev` and GitHub release downloads refused; `proxy.golang.org`, `pypi.org`, `gcr.io`, `ghcr.io` and Docker Hub reachable | Tools come through the Go proxy or PyPI; Trivy runs only in CI; `vuln.go.dev` must be allowed for `govulncheck` |
 | PostgreSQL server | 16 installed (`/usr/lib/postgresql/16`) | Integration tests start a cluster of their own in a session |
 | Docker | Installed, **daemon not running** | No testcontainers; the OpenID Foundation suite runs only in CI |
 | Chromium | Revision 1194 in `/opt/pw-browsers` | The end-to-end suite pins the Playwright release built against 1194 (the marketplace's `1.56.0`), installed by `make e2e-deps` |
-| Python Playwright | **Not installed** in this session's `python3` | `make e2e-deps` installs it; the environment setup script runs it once the Makefile exists |
-| `pytest` on the path | A separate `uv` tool without Playwright | The suite runs as `python3 -m pytest` |
+| Python Playwright | **Not installed** in this session's `python3` | `make e2e-deps` creates `e2e/.venv` with it; the environment setup script runs it once the Makefile exists |
+| `pytest` on the path | A separate `uv` tool without Playwright | The suite runs as `e2e/.venv/bin/python -m pytest` |
 | `gcloud`, `terraform` | Not installed | GCP steps are written for Cloud Shell; Terraform is installed by `make terraform-deps` and applied only in CI |

@@ -117,7 +117,7 @@ service, **E**levation of privilege.
 | B4-01 | I, T | SQL injection | Parameterised queries only; no string-built SQL; `gosec` | Lint; fuzzing of inputs reaching storage | 1 |
 | B4-02 | I | Database dump exposes secrets | Hashes for passwords, sessions, codes, tokens and client secrets; everything else secret encrypted under the tenant data key; the KMS key never in the database | Test that no plaintext secret column exists (schema scan in CI) | 1 |
 | B4-03 | E | The service's database role exceeds its needs | Two roles; the service is subject to row-level security and owns nothing; migrations run as the migrator | Integration tests run as the service role; a test that the service cannot alter the schema | 1 |
-| B4-04 | I | Keys or tokens written to logs | Structured logging with typed secret wrappers that redact; a lint rule against logging request bodies and headers wholesale | Log-scanning test in e2e for known token prefixes | 1 |
+| B4-04 | I | Keys or tokens written to logs | Structured logging with typed secret wrappers that redact; a lint rule against logging request bodies and headers wholesale | Log-scanning test in e2e for known token prefixes; `secret.String` redacts on every formatting path, with unit tests (F1) | 1 |
 | B4-05 | D | The KMS is unavailable | Data keys cached with a bounded lifetime; a cold instance without KMS access fails closed with a clear error | Test with a failing KMS fake | 1 |
 
 ### B5 — WebAssembly plugins ↔ host
@@ -144,10 +144,10 @@ service, **E**levation of privilege.
 
 | ID | STRIDE | Threat | Mitigation | Verification | Phase |
 |---|---|---|---|---|---|
-| B7-01 | T | Malicious or vulnerable dependency | Minimal dependency policy for `core`; `govulncheck`, Dependabot, Trivy; reviewed updates | CI | 1 |
-| B7-02 | T | Compromised workflow or third-party action | Actions pinned by commit SHA; least-privilege `permissions:`; no secrets in pull requests from forks; Workload Identity Federation restricted to this repository and branch | Workflow lint in CI | 1 |
+| B7-01 | T | Malicious or vulnerable dependency | Minimal dependency policy for `core`; `govulncheck`, Dependabot, Trivy; reviewed updates; Trivy blocks on HIGH and CRITICAL whether or not a fix exists; an exception needs a statement and an expiry at most 90 days ahead, checked by `trivyignorecheck`, and the owner's approval | CI: `govulncheck` and Trivy jobs; `trivyignorecheck` in `make check` | 1 |
+| B7-02 | T | Compromised workflow or third-party action | Actions pinned by commit SHA; least-privilege `permissions:`; no secrets in pull requests from forks; Workload Identity Federation restricted to this repository and branch | `actionlint` and `zizmor` in `make check` | 1 |
 | B7-03 | T | Tampered release artefacts | Reproducible builds with a digest check; Sigstore signatures; SLSA provenance; SBOM | Release workflow verification step | 1, 12 |
-| B7-04 | I | Secret committed to the public repository | `gitleaks` in CI; secrets only in Secret Manager and repository secrets | CI | 1 |
+| B7-04 | I | Secret committed to the public repository | `gitleaks` in CI; secrets only in Secret Manager and repository secrets | `gitleaks` over the whole history in `make check` | 1 |
 
 ## 5. Cross-cutting threats
 
@@ -155,9 +155,9 @@ service, **E**levation of privilege.
 |---|---|---|---|
 | X-01 | Timing side channels on secret comparison | Constant-time comparison, enforced by a lint rule | Lint |
 | X-02 | Weak or misused cryptography | Algorithm set fixed in code with refusals (§17); keys generated only by the crypto packages; nonces never reused (random 96-bit for AES-GCM with rotation well below the bound) | Tests; lint against `math/rand` in security packages |
-| X-03 | Parser bugs (JWT, JSON, CBOR, XML, SCIM filters, URLs) | Fuzzing of every parser, corpus committed, run on every pull request and nightly | CI fuzz jobs |
+| X-03 | Parser bugs (JWT, JSON, CBOR, XML, SCIM filters, URLs) | Fuzzing of every parser, corpus committed, run on every pull request and nightly | CI fuzz jobs; F1: `FuzzLoad` for the deployment configuration loader |
 | X-04 | Application denial of service through expensive operations | argon2id cost bounded and concurrency-limited; request size limits; XML and JSON depth limits; regular expressions only from RE2 | Tests with oversized and deep inputs |
-| X-05 | Misconfiguration weakens security | Floors in code; invalid configuration refuses to start; recommendations shown in the console | Tests per floor through every facade |
+| X-05 | Misconfiguration weakens security | Floors in code; invalid configuration refuses to start; recommendations shown in the console | Tests per floor through every facade; F1: a process test that a boolean with a typo makes the binary exit with status 2 naming the variable |
 | X-06 | Prompt-injected agents misuse delegated tokens | Least-privilege scopes and RAR, per-grant consent, short lifetimes, token vault releases audited and revocable, CAEP revocation | Tests of scope narrowing and revocation propagation |
 
 ## 6. The operator

@@ -47,6 +47,8 @@ lib/                    module .../identity/lib                  Apache-2.0   (p
 adapters/sqlite/        module .../identity/adapters/sqlite      Apache-2.0   (phase 3)
 sdk/go/, sdk/ts/, sdk/python/                                    Apache-2.0   (phases 3 and 11)
 e2e/                    pytest + Playwright
+tools/<tool>/           one module per pinned tool, outside go.work             AGPL-3.0
+tools/checks/           the project's own checkers (spdxcheck, trivyignorecheck) AGPL-3.0
 infra/terraform/        the lab
 docs/
 ```
@@ -60,6 +62,9 @@ docs/
   no surface and no GCP package; adapters import `core` and `spec`; the root module imports
   everything.
 - Every module carries its own `LICENSE`; every source file an SPDX identifier.
+- **Why tools sit outside the workspace, one module per tool.** In the workspace they would raise
+  dependency versions `core` shares with them; in a single module, minimal version selection breaks
+  the builds of some tools (found in F1).
 
 ### 1.3 The ports of phase 1
 
