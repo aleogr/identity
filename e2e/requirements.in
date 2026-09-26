@@ -1,0 +1,4 @@
+# playwright is pinned to the release built against the Chromium revision in
+# /opt/pw-browsers (1194 on 2026-09-26); it moves only with that revision.
+playwright==1.56.0
+pytest==9.1.1

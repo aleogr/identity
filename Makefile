@@ -84,3 +84,14 @@ build: ## Build bin/identity with the build identifier
 .PHONY: run
 run: build ## Build and run identity serve
 	bin/identity serve
+
+E2E_VENV := e2e/.venv
+
+.PHONY: e2e-deps
+e2e-deps: ## Create the end-to-end virtual environment (Playwright 1.56.0)
+	$(PYTHON) -m venv $(E2E_VENV)
+	$(E2E_VENV)/bin/python -m pip install --quiet --disable-pip-version-check --require-hashes --no-deps -r e2e/requirements.txt
+
+.PHONY: e2e
+e2e: build ## Run the end-to-end suite against bin/identity
+	cd e2e && .venv/bin/python -m pytest
