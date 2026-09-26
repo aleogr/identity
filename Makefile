@@ -46,11 +46,12 @@ $(ZIZMOR): tools/requirements.txt
 .PHONY: check
 check: tools $(ZIZMOR) ## vet, staticcheck, golangci-lint, gosec, govulncheck, licences, exceptions, secrets, workflows
 	go vet $(PKGS)
-	cd tools/checks && GOWORK=off go vet ./...
+	cd tools/checks && GOWORK=off go vet -tags lintrules ./...
 	$(T)/staticcheck $(PKGS)
 	@mkdir -p dist/sarif
 	$(T)/golangci-lint run --config .golangci.yml --output.text.path=stdout --output.sarif.path=dist/sarif/golangci-lint.sarif $(PKGS)
-	cd tools/checks && GOWORK=off $(CURDIR)/$(T)/golangci-lint run --config $(CURDIR)/.golangci.yml ./...
+	cd tools/checks && GOWORK=off $(CURDIR)/$(T)/golangci-lint run --build-tags lintrules --config $(CURDIR)/.golangci.yml ./...
+	cd tools/checks && GOWORK=off GOLANGCI_LINT=$(CURDIR)/$(T)/golangci-lint go test -tags lintrules -count=1 ./internal/lintrules/
 	@for m in $(MODULES); do echo "gosec $$m"; (cd $$m && $(CURDIR)/$(T)/gosec -quiet ./...); done
 	@for m in $(MODULES); do echo "govulncheck $$m"; (cd $$m && $(CURDIR)/$(T)/govulncheck ./...); done
 	$(T)/spdxcheck

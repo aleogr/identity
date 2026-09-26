@@ -23,13 +23,13 @@ linters:
         # The direction of dependencies (docs/design.md, section 1.2).
         spec:
           list-mode: strict
-          files: ["**/spec/**/*.go"]
+          files: ["**/spec/**"]
           allow:
             - $gostd
             - github.com/aleogr/identity/spec
         core:
           list-mode: strict
-          files: ["**/core/**/*.go"]
+          files: ["**/core/**"]
           allow:
             - $gostd
             - golang.org/x/crypto
@@ -37,36 +37,38 @@ linters:
             - github.com/aleogr/identity/core
         conformance:
           list-mode: strict
-          files: ["**/conformance/**/*.go"]
+          files: ["**/conformance/**"]
           allow:
             - $gostd
             - github.com/aleogr/identity/spec
             - github.com/aleogr/identity/conformance
         # Apache-2.0 code never imports the AGPL-3.0 server (LICENSING.md).
         adapters-licence:
-          files: ["**/adapters/**/*.go"]
+          files: ["**/adapters/**"]
           deny:
+            - pkg: github.com/aleogr/identity$
+              desc: adapters are Apache-2.0 and never import the AGPL-3.0 server
             - pkg: github.com/aleogr/identity/internal
               desc: adapters are Apache-2.0 and never import the AGPL-3.0 server
             - pkg: github.com/aleogr/identity/cmd
               desc: adapters are Apache-2.0 and never import the AGPL-3.0 server
         # An adapter never imports another, so a PostgreSQL user never downloads the GCP libraries.
         adapter-postgres:
-          files: ["**/adapters/postgres/**/*.go"]
+          files: ["**/adapters/postgres/**"]
           deny:
             - pkg: github.com/aleogr/identity/adapters/gcp
               desc: an adapter never imports another adapter
             - pkg: github.com/aleogr/identity/adapters/mail
               desc: an adapter never imports another adapter
         adapter-gcp:
-          files: ["**/adapters/gcp/**/*.go"]
+          files: ["**/adapters/gcp/**"]
           deny:
             - pkg: github.com/aleogr/identity/adapters/postgres
               desc: an adapter never imports another adapter
             - pkg: github.com/aleogr/identity/adapters/mail
               desc: an adapter never imports another adapter
         adapter-mail:
-          files: ["**/adapters/mail/**/*.go"]
+          files: ["**/adapters/mail/**"]
           deny:
             - pkg: github.com/aleogr/identity/adapters/postgres
               desc: an adapter never imports another adapter
