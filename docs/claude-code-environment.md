@@ -52,10 +52,16 @@ latest in the marketplace when the session starts (6.4.1 on 2026-09-25).
 
 ### Why the end-to-end and Terraform dependencies are installed by the script
 
-A session has neither Playwright for Python nor `terraform`. The `Makefile` targets that install them
-are delivered in F1 and F2 (`docs/roadmap.md`); the pinned Playwright release is the one built against
-the Chromium revision pre-installed in `/opt/pw-browsers` (1194 on 2026-09-26), so no browser is
-downloaded.
+A session has neither Playwright for Python nor `terraform`. `make e2e-deps` (F1) creates `e2e/.venv`
+with the pinned Playwright release, the one built against the Chromium revision pre-installed in
+`/opt/pw-browsers` (1194 on 2026-09-26, Playwright 1.56.0), so no browser is downloaded;
+`make terraform-deps` arrives with F2.
+
+## Network
+
+`govulncheck`, in `make check`, needs `vuln.go.dev`, which must be in the environment's allowed domains
+(**Network access** in the environment's settings). No target needs `go.dev` or GitHub release
+downloads: Go tools come through `proxy.golang.org` and Python packages through `pypi.org`.
 
 ## Skills in `.claude/skills/`
 
