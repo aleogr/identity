@@ -95,3 +95,9 @@ e2e-deps: ## Create the end-to-end virtual environment (Playwright 1.56.0)
 .PHONY: e2e
 e2e: build ## Run the end-to-end suite against bin/identity
 	cd e2e && .venv/bin/python -m pytest
+
+.PHONY: image
+image: tools ## Build the container image into dist/identity-image.tar (no push)
+	@mkdir -p dist
+	BUILD_ID=$(BUILD_ID) KO_DOCKER_REPO=identity.local/identity $(T)/ko build --bare --push=false \
+		--tarball=dist/identity-image.tar ./cmd/identity
